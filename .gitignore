@@ -1,0 +1,17 @@
+node_modules
+dist
+.wrangler
+.baze
+.dev.vars
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+**/__pycache__/
+.pytest_cache/
+.venv/
+.baze-files/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.tsbuildinfo

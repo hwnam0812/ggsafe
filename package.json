@@ -1,0 +1,40 @@
+{
+  "name": "baze-template",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/streamlit-dev.mjs",
+    "dev:web": "node scripts/dev.mjs",
+    "build:streamlit": "tsc --noEmit -p tsconfig.app.json && vite build --config vite.streamlit.config.ts",
+    "build": "tsc -b && vite build",
+    "db:init": "node scripts/db-init.mjs",
+    "test:security": "node --test tests/security-response.test.mjs",
+    "test:history": "node --test tests/security-history.test.mjs",
+    "test:google": "node --test tests/google-preview.test.mjs",
+    "test:session": "node --test tests/google-session-client.test.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:preview": "node --test tests/preview-startup.test.mjs",
+    "test:password": "node --test tests/password-check.test.mjs",
+    "check": "node ../_tools/check.mjs ."
+  },
+  "dependencies": {
+    "hono": "^4.10.2",
+    "lucide-react": "^0.545.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.9.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "@tailwindcss/vite": "^4.1.13",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "jose": "^6.1.0",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "wrangler": "^4.149.0"
+  }
+}

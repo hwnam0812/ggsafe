@@ -1,0 +1,22 @@
+[server]
+headless = true
+enableCORS = true
+enableXsrfProtection = true
+maxMessageSize = 2
+maxUploadSize = 1
+fileWatcherType = "poll"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = "none"
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#2865df"
+backgroundColor = "#f5f7fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1d2c43"
+font = "sans serif"

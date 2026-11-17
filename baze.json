@@ -1,0 +1,1 @@
+{ "data": { "tables": ["security_history", "security_password_history"] }, "secrets": ["ADMIN_TOKEN", "GOOGLE_CLIENT_SECRET"] }
