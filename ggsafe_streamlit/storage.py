@@ -14,6 +14,7 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS ggsafe_rate (rate_key TEXT PRIMARY KEY, count INTEGER NOT NULL, window_start DOUBLE PRECISION NOT NULL)",
     "CREATE TABLE IF NOT EXISTS ggsafe_leases (email_hash TEXT PRIMARY KEY, token TEXT NOT NULL, expires_at DOUBLE PRECISION NOT NULL)",
 )
+POSTGRES_SCHEMA = Path(__file__).resolve().parents[1] / "supabase/migrations/20261117000100_ggsafe_history.sql"
 
 def storage_retry(operation, pause=time.sleep):
     delays = (0.025, 0.060, 0.120, 0.220)
@@ -42,7 +43,10 @@ class Store:
         if self._url:
             import psycopg
             from psycopg.rows import dict_row
-            connection = psycopg.connect(self._url, connect_timeout=8, sslmode="require", row_factory=dict_row)
+            # Supabase의 공유 보관 연결에서도 prepared statement 충돌이 나지 않게 한다.
+            # URL에 다른 옵션이 있더라도 암호화 연결·앱 전용 검색 경로를 유지한다.
+            connection = psycopg.connect(self._url, connect_timeout=8, sslmode="require", prepare_threshold=None,
+                options="-c search_path=public", row_factory=dict_row)
         else:
             connection = sqlite3.connect(self._path, timeout=5)
             connection.row_factory = sqlite3.Row
@@ -61,8 +65,12 @@ class Store:
                 if self._url:
                     # 두 방문자가 처음 열어도 표 준비가 서로 충돌하지 않는다.
                     connection.execute("SELECT pg_advisory_xact_lock(1734821631)")
-                for statement in SCHEMA:
-                    self.execute(connection, statement)
+                    # 공개 앱과 실제 보관 공간 준비에 같은 변경문을 사용한다.
+                    # 익명·브라우저용 권한은 주지 않으며 신원 확인된 Python 처리기만 접근한다.
+                    connection.execute(POSTGRES_SCHEMA.read_text(encoding="utf-8"))
+                else:
+                    for statement in SCHEMA:
+                        self.execute(connection, statement)
         storage_retry(operation)
         return self
 
