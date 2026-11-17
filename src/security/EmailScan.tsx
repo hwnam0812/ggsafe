@@ -1,7 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
-import { AlertCircle, Check, ChevronLeft, ChevronRight, Clock3, Database, ExternalLink, LoaderCircle, LockKeyhole, Mail, RefreshCw, ScanLine, Search, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, Database, ExternalLink, LoaderCircle, LockKeyhole, Mail, RefreshCw, ScanLine, Search } from "lucide-react";
 import { Link } from "react-router";
 import { useSecurity, formatDate } from "./SecurityProvider";
+import { emailJourney, emailSummary } from "../lib/scan-visuals";
+import { ScanJourney, ScanResultVisual } from "./ScanVisuals";
 
 function BreachList({ names }: { names: string[] }) {
   const [query, setQuery] = useState("");
@@ -12,7 +14,7 @@ function BreachList({ names }: { names: string[] }) {
 }
 
 export default function EmailScan() {
-  const { state: { email, result, busy }, actions: { scan, retryEmailHistory } } = useSecurity();
+  const { state: { email, result, busy, scanPhase }, actions: { scan, retryEmailHistory } } = useSecurity();
   const [consent, setConsent] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
@@ -47,10 +49,11 @@ export default function EmailScan() {
       <button className="gg-primary-button gg-scan-button" type="submit" disabled={busy || saving}>{busy ? <LoaderCircle size={18} className="gg-spinning"/> : result ? <RefreshCw size={18}/> : <ScanLine size={18}/>} {busy ? "유출 기록 확인 중…" : result ? "내 이메일 다시 검사" : "내 이메일 검사하기"}</button>
       <p className="gg-form-caption"><LockNote/> {result ? "다시 검사는 이전 결과를 재사용하지 않고 새로 조회해요." : "같은 이메일의 최근 결과는 최대 5분 동안 재사용해요."}</p>
     </form>
-    <div aria-live="polite" aria-atomic="false">{busy && <div className="gg-scan-progress" role="status"><span/><p>공개된 유출 기록과 비교하고 있어요.</p></div>}{result && !busy && <div className={`gg-result ${result.status === "breached" ? "gg-result-warning" : complete ? "gg-result-complete" : "gg-result-error"}`}>
-      <div className="gg-result-heading">{result.status === "breached" ? <ShieldAlert size={22}/> : complete ? <Check size={21}/> : <AlertCircle size={21}/>}<h3>{result.status === "breached" ? "유출 기록이 발견됐어요" : result.status === "not_found" ? "공개된 유출 기록을 찾지 못했어요" : "검사를 완료하지 못했어요"}</h3></div>
+    <ScanJourney kind="email" state={emailJourney(scanPhase, busy, result)}/>
+    <div>{result && !busy && <div className={`gg-result ${result.status === "breached" ? "gg-result-warning" : complete ? "gg-result-complete" : "gg-result-error"}`} role={complete ? undefined : "alert"}>
+      <ScanResultVisual kind="email" summary={emailSummary(result)} title={result.status === "breached" ? "유출 기록이 발견됐어요" : result.status === "not_found" ? "공개된 유출 기록을 찾지 못했어요" : "검사를 완료하지 못했어요"}/>
       <p>{result.message}</p>
-      {result.status === "breached" && <><div className="gg-found-count"><strong>{result.breach_count.toLocaleString("ko-KR")}</strong><span>개의 관련 유출 서비스</span></div><BreachList key={result.checked_at} names={result.breaches}/><Link to="/guide" className="gg-result-link">지금 필요한 보안 조치 보기 <ChevronRight size={16}/></Link></>}
+      {result.status === "breached" && <><BreachList key={result.checked_at} names={result.breaches}/><Link to="/guide" className="gg-result-link">지금 필요한 보안 조치 보기 <ChevronRight size={16}/></Link></>}
       {result.status === "not_found" && <p className="gg-result-caution">알려지지 않은 유출까지 확인한 것은 아니며, 계정이 안전하다는 보장은 아니에요.</p>}
       <div className="gg-result-meta"><span><Clock3 size={13}/>{complete ? "조회" : "시도"} · {formatDate(result.checked_at)}</span>{complete && <span><Database size={13}/>{result.cached ? "최근 조회 결과" : "새로 조회한 결과"}</span>}</div>
       {result.history_requested && result.history_saved === false && result.status !== "in_progress" && <div className="gg-email-history-warning"><p className="gg-save-warning">{complete ? "검사는 완료했지만 이력에 저장하지 못했어요." : "이 결과는 이력에 저장하지 못했어요."}</p>{result.history_id && <><p>검사를 반복하지 않고 저장만 다시 시도할 수 있어요. 새로고침하면 저장 대기 중인 결과는 사라질 수 있어요.</p><button type="button" className="gg-secondary-button" disabled={saving} onClick={() => void retrySave()}>{saving ? <LoaderCircle size={16} className="gg-spinning" aria-hidden="true"/> : <Database size={16} aria-hidden="true"/>}{saving ? "이메일 이력 저장 중…" : "이메일 이력 저장 다시 시도"}</button></>}{saveError && <p className="gg-form-error" role="alert">{saveError}</p>}</div>}

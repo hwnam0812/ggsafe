@@ -93,3 +93,32 @@ test("시간 초과는 정상 미발견이 아니에요", async () => {
     await new Promise(resolve => setTimeout(resolve, 15)); options.signal.throwIfAborted(); return textResponse(range());
   } }), /조회 시간이/);
 });
+
+test("진행 알림은 실제 동작 순서의 단계 이름만 전달해요", async () => {
+  const phases = [];
+  const result = await checkPassword(synthetic, { consent: true,
+    onProgress: (...args) => { assert.equal(args.length, 1); phases.push(args[0]); },
+    fetcher: async () => { assert.deepEqual(phases, ["hashing", "lookup"]); return textResponse(range()); },
+  });
+  assert.deepEqual(phases, ["hashing", "lookup", "comparing"]);
+  assert.equal(result.count, 7);
+  assert.ok(!JSON.stringify(phases).includes(synthetic)); assert.ok(!JSON.stringify(phases).includes(hash));
+});
+test("진행 표시가 실패해도 검사·결과는 바뀌지 않아요", async () => {
+  assert.equal((await checkPassword(synthetic, { consent: true, onProgress: () => { throw new Error("합성 표시 오류"); }, fetcher: async () => textResponse(range()) })).count, 7);
+});
+test("진행 중 중단하면 다음 단계·외부 조회를 진행하지 않아요", async () => {
+  const controller = new AbortController(), phases = []; let calls = 0;
+  await assert.rejects(checkPassword(synthetic, { consent: true, signal: controller.signal,
+    onProgress: phase => { phases.push(phase); controller.abort(); },
+    fetcher: async () => { calls++; return textResponse(range()); },
+  }), /중단/);
+  assert.deepEqual(phases, ["hashing"]); assert.equal(calls, 0);
+});
+test("동의 전·실패한 응답·중단 후에는 거짓 비교 완료를 알리지 않아요", async () => {
+  const phases = [];
+  await assert.rejects(checkPassword(synthetic, { consent: false, onProgress: phase => phases.push(phase) }), PasswordCheckError);
+  assert.deepEqual(phases, []);
+  await assert.rejects(checkPassword(synthetic, { consent: true, onProgress: phase => phases.push(phase), fetcher: async () => textResponse("합성 오류", 503) }), PasswordCheckError);
+  assert.deepEqual(phases, ["hashing", "lookup"]);
+});

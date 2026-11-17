@@ -1,12 +1,13 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createSecurityClient } from "../lib/security-client";
 import type { PasswordHistoryInput, ScanHistory, ScanResult } from "../lib/security-types";
+import type { EmailScanPhase } from "../lib/scan-visuals";
 import { googleSessionKey, securityApi } from "./google-session";
 import { useGoogle } from "./GoogleProvider";
 
 type ScanInput = { consent: boolean; remember: boolean; force: boolean };
 type SecurityContextValue = {
-  state: { email: string; result: ScanResult | null; busy: boolean; history: ScanHistory[]; historyLoading: boolean; historyError: string };
+  state: { email: string; result: ScanResult | null; busy: boolean; scanPhase: EmailScanPhase; history: ScanHistory[]; historyLoading: boolean; historyError: string };
   actions: { scan: (input: ScanInput) => Promise<void>; retryEmailHistory: () => Promise<void>; savePasswordHistory: (input: PasswordHistoryInput) => Promise<void>; refreshHistory: () => Promise<void>; clearHistory: () => Promise<void> };
 };
 const SecurityContext = createContext<SecurityContextValue | null>(null);
@@ -20,6 +21,7 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
   });
   const [result, setResult] = useState<ScanResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scanPhase, setScanPhase] = useState<EmailScanPhase>("identity");
   const [history, setHistory] = useState<ScanHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -48,14 +50,17 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
   const scan = useCallback(async (input: ScanInput) => {
     if (!input.consent || pendingScan.current || pendingEmailSave.current) return;
     pendingScan.current = true;
+    setScanPhase("identity");
     setBusy(true);
     setResult(null);
     try {
       await ensureActive();
       if (!mounted.current) return;
+      setScanPhase("lookup");
       const response = await securityClient.scan({ ...input, email });
       if (!mounted.current) return;
       setResult(response);
+      if (response.status === "breached" || response.status === "not_found") setScanPhase("history");
       if (pendingHistory.current) await pendingHistory.current;
       await refreshHistory();
     } catch (error) {
@@ -95,7 +100,7 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
     setResult(null);
   }, [ensureActive, securityClient]);
 
-  const value = useMemo(() => ({ state: { email, result, busy, history, historyLoading, historyError }, actions: { scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory } }), [email, result, busy, history, historyLoading, historyError, scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory]);
+  const value = useMemo(() => ({ state: { email, result, busy, scanPhase, history, historyLoading, historyError }, actions: { scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory } }), [email, result, busy, scanPhase, history, historyLoading, historyError, scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory]);
   return <SecurityContext value={value}>{children}</SecurityContext>;
 }
 
