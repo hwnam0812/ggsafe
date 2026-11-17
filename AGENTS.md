@@ -24,7 +24,7 @@ XposedOrNot은 유출·공식 미발견·응답 오류·연결 오류·제한을
 잘못된 PC 주소 기본값을 제거하고 웹 미리보기에서 내부 주소로 로그인을 시작하지 못하게 했다. 설정 미완료는 화면에 명시하며 로그인 성공으로 안내하지 않는다.
 로그인 설정 미완료여도 이미 확인된 계정의 관리창과 로그아웃은 사용할 수 있게 고쳤다. 완료된 과거 요청의 401 응답이 현재 계정을 끊지 않게 했다.
 새 Streamlit 공개 주소·Google 돌아올 주소 등록·영구 보관 연결은 아직 미완료다. 기존 웹 로그인 성공 확인은 Streamlit 공개 로그인 성공을 뜻하지 않는다. 기존 Google 등록을 삭제하거나 처음부터 반복 요청하지 않는다.
-GitHub는 hwnam0812로 연결했고 사용자가 기존 공개 빈 저장소 hwnam0812/ggsafe를 지정했다. 업로드 대상 브랜치는 feat/streamlit-web이며 원격 공개 범위는 바꾸지 않는다. Streamlit 실행 파일은 streamlit_app.py이고 연결 안내는 README.md에 있다. 실제 Google 로그인과 PostgreSQL 보관을 확인하기 전에는 배포 완료라고 하지 않는다.
+GitHub는 사용자 지정 공개 빈 저장소 hwnam0812/ggsafe의 feat/streamlit-web에 최초 업로드(b4d4c51)를 완료했고 원격의 109개 파일·실행 파일·필수 화면 패키지·민감 파일 제외를 확인했다. 빈 저장소 최초 브랜치라 기본 브랜치도 feat/streamlit-web이며 비교할 기존 브랜치가 없어 PR은 없다. 공개 범위는 변경하지 않았다. Streamlit 실행 파일은 streamlit_app.py이고 연결 안내는 README.md다. 실제 Google 로그인과 PostgreSQL 보관을 확인하기 전에는 배포 완료라고 하지 않는다.
 기존 웹 테스트 179개·Streamlit Python 테스트 93개와 앱·Worker TypeScript 검사를 통과했다. 익명 Streamlit AppTest도 예외 없이 통과했다.
 tests_streamlit/streamlit.e2e.mjs는 합성 쿠키·외부 응답과 실제 Streamlit 처리기로 1440·558·383px에서 동의·검사·서비스 검색·목록 이동·가이드 연결·계정 분리·저장·재시도·재접속·다른 브라우저 공유·삭제·로그아웃을 통과했다.
 tests_streamlit/session.e2e.mjs는 558px에서 만료·위조 쿠키 차단, 과거 응답 무시, 다른 탭 로그아웃, 진행 중 비밀번호 조회 중단과 늦은 결과 미저장을 통과했다.
