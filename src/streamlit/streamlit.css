@@ -1,37 +1,99 @@
-html,body,#root { margin:0; min-height:0; background:#f5f7fb; }
+html,body,#root { margin:0; min-height:0; background:#edf1f7; }
 html { color-scheme:light; }
-.gg-login-page { font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; }
-.gg-login-page :focus-visible { outline:3px solid #2865df; outline-offset:4px; }
-.gg-app,.gg-login-page { min-height:0; padding-bottom:max(24px,env(safe-area-inset-bottom)); }
+/* 세로 9:16을 기본으로 한다. 높이는 최소값일 뿐이며 긴 내용은 바깥 페이지로 스크롤한다. */
+.gg-app,.gg-login-page { width:100%; max-width:430px; min-height:calc(min(100vw,430px) * 16 / 9); margin-inline:auto; padding-bottom:max(24px,env(safe-area-inset-bottom)); background:#f5f7fb; font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; line-height:1.8; word-break:keep-all; box-shadow:0 0 0 1px #e4eaf3; }
+.gg-app { --gg-line:#e4eaf3; position:relative; font-size:14px; }
 .gg-app #main-content,.gg-login-page #login-start { scroll-margin-top:24px; }
+.gg-login-page { padding:24px 16px; }
+.gg-login-card { padding:28px 24px; }
+.gg-login-card h1 { font-size:29px; }
+.gg-login-page :focus-visible { outline:3px solid #2865df; outline-offset:4px; }
 .gg-login-details strong { font-size:14px; }
 .gg-login-error .gg-login-setup-note { font-size:13px; line-height:1.8; color:#516680; }
-.gg-app { --gg-line:#e4eaf3; position:relative; }
-/* 바깥 문서가 스크롤하므로 데스크톱 메뉴도 iframe 전체에 고정하지 않는다. */
-.gg-sidebar { position:absolute; }
-/* fixed 대화창은 긴 iframe의 중앙에 고정되어 휴대폰 화면 밖으로 벗어난다. */
-.gg-modal { position:absolute; max-height:min(600px,calc(100dvh - 32px)); }
+
+/* 넓은 PC 창에서도 데스크톱으로 바뀌지 않는 휴대폰 전용 구성. */
+.gg-app .gg-sidebar,.gg-app .gg-breadcrumb,.gg-app .gg-today { display:none; }
+.gg-app .gg-workspace { margin-left:0; }
+.gg-app .gg-topbar { height:auto; min-height:68px; gap:10px; padding:12px 16px; flex-wrap:wrap; }
+.gg-app .gg-mobile-brand { display:flex; align-items:center; gap:7px; font-size:22px; font-weight:800; text-decoration:none; }
+.gg-app .gg-mobile-brand>svg { color:var(--gg-blue); }
+.gg-app .gg-topbar-actions { gap:6px; }
+.gg-app .gg-topbar-actions>.gg-icon-button { display:none; }
+.gg-app .gg-google-button { min-height:44px; padding:8px 10px; gap:6px; font-size:12px!important; }
+.gg-app .gg-mobile-nav { display:flex; justify-content:space-around; padding:0 4px; background:#fff; border-bottom:1px solid var(--gg-line); }
+.gg-app .gg-mobile-nav>a { display:flex; position:relative; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:64px; padding:10px 4px; color:var(--gg-muted); font-size:12px; text-decoration:none; white-space:nowrap; }
+.gg-app .gg-mobile-nav>a.is-active { color:#2d64ca; font-weight:650; }
+.gg-app .gg-mobile-nav>a.is-active::after { content:""; position:absolute; height:2px; bottom:-1px; left:12px; right:12px; background:var(--gg-blue); }
+.gg-app .gg-main { padding:24px max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left)); }
+.gg-app .gg-page-heading { margin-bottom:20px; }
+.gg-app .gg-page-heading h1 { font-size:25px; }
+.gg-app .gg-page-heading>div>p { font-size:12px; }
+.gg-app .gg-scan-grid,.gg-app .gg-scan-page-layout,.gg-app .gg-guide-grid,.gg-app .gg-guide-tasks,.gg-app .gg-manual-grid { grid-template-columns:minmax(0,1fr); gap:16px; }
+.gg-app .gg-panel { padding:20px; }
+.gg-app .gg-panel>h2 { font-size:18px; }
+.gg-app .gg-hero { min-height:260px; padding:24px; }
+.gg-app .gg-hero-copy { max-width:100%; }
+.gg-app .gg-hero h2 { font-size:28px; }
+.gg-app .gg-hero-copy>p { max-width:235px; font-size:13px; }
+.gg-app .gg-shield-scene { right:-95px; opacity:.35; transform:translateY(-50%) scale(.65); }
+.gg-app .gg-metrics { grid-template-columns:1fr 1fr; margin:18px 0 24px; padding:16px 0 0; }
+.gg-app .gg-metrics>div { padding:0 16px 16px; }
+.gg-app .gg-metrics>div:last-child { display:flex; grid-column:1/-1; border-left:0; border-top:1px solid var(--gg-line); padding:12px 16px; }
+.gg-app .gg-metrics strong { font-size:22px; }
+.gg-app .gg-metrics .gg-metric-date { font-size:15px; line-height:1.8; }
+.gg-app .gg-password-panel { min-height:0; }
+.gg-app .gg-password-visual { min-height:110px; }
+.gg-app .gg-checkbox { min-height:44px; gap:10px; font-size:14px; line-height:1.7; }
+.gg-checkbox input { width:20px; height:20px; }
+.gg-remember-option>p { margin-left:30px; font-size:12px; }
+.gg-field-help,.gg-form-caption,.gg-panel-description { font-size:13px; line-height:1.8; }
+.gg-app .gg-primary-button,.gg-app .gg-secondary-button { min-height:48px; font-size:14px!important; }
+.gg-verified-email>span { font-size:14px; }
+.gg-breach-list li { min-height:40px; font-size:13px; }
+.gg-pagination button { min-width:44px; min-height:44px; }
+.gg-search input,.gg-email-field input { font-size:16px; }
+.gg-scan-tabs button { flex:1; min-height:48px; padding:12px; font-size:14px; }
+.gg-app .gg-inspection-intro { padding:20px; gap:12px; }
+.gg-app .gg-guide-device,.gg-app .gg-guide-task { padding:20px; }
+.gg-app .gg-guide-task-title { align-items:flex-start; gap:10px; }
+.gg-app .gg-guide-task-title>h2 { font-size:18px; }
+.gg-app .gg-easy-guide .gg-guide-intro { padding:20px; gap:12px; }
+.gg-app .gg-easy-guide .gg-guide-intro h2 { font-size:17px; }
+.gg-app .gg-guide-device-next { padding:16px; }
+.gg-app .gg-guide-device>.gg-primary-button { width:100%; flex-wrap:wrap; gap:8px; }
+.gg-app .gg-history-preview>div { flex-wrap:wrap; }
+.gg-app .gg-history-preview .gg-badge { white-space:normal; }
+.gg-app .gg-footer { padding:0 16px 20px; gap:8px; flex-wrap:wrap; font-size:12px; }
+.gg-app .gg-footer>span { flex:1; min-width:0; }
+.gg-app .gg-footer button { display:block; min-height:44px; font-size:12px; }
+
+/* 이력 네 항목을 가로로 밀지 않고 기록 한 건 안에서 모두 읽는다. */
+.gg-app .gg-history-panel { padding:0; }
+.gg-history-toolbar { padding:12px; flex-wrap:wrap; }
+.gg-filter-tabs button,.gg-delete-button { min-height:44px; font-size:12px; }
+.gg-history-table-wrap { overflow:visible; }
+.gg-history-table { display:block; min-width:0; font-size:14px; }
+.gg-history-table thead { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.gg-history-table tbody { display:block; }
+.gg-history-table tr { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; padding:20px; }
+.gg-history-table tr+tr { border-top:1px solid var(--gg-line); }
+.gg-history-table td { display:block; min-width:0; border:0; padding:0; overflow-wrap:anywhere; }
+.gg-history-table td::before { content:attr(data-label); display:block; margin-bottom:5px; font-size:12px; color:#63738a; }
+.gg-history-table td:nth-child(-n+2) { grid-column:1/-1; }
+.gg-history-table .gg-badge { white-space:normal; font-size:12px; }
+.gg-history-table td>small { margin-left:0; font-size:11px; }
+.gg-history-note { font-size:12px; line-height:1.8; }
+
+/* fixed 대화창은 긴 iframe 중앙에 갇히므로 문서와 함께 이동하게 한다. */
+.gg-modal { position:absolute; width:min(398px,calc(100vw - 32px)); max-height:min(600px,calc(100dvh - 32px)); }
+.gg-google-account-actions { grid-template-columns:1fr; }
+.gg-google-account-actions button { min-height:48px; }
 .gg-email-history-warning>p { font-size:13px; line-height:1.8; }
-.gg-storage-notice { margin-bottom:24px; padding:20px; border:1px solid #d9b16f; border-radius:10px; background:#fff8eb; }
-.gg-storage-notice h2 { margin:0 0 8px; font-size:17px; }
-.gg-storage-notice p { margin:8px 0; font-size:13px; line-height:1.8; color:#6f542c; }
-@media(max-width:760px) {
-  .gg-app { font-size:14px; }
-  .gg-google-button { font-size:12px!important; }
-  .gg-topbar { height:auto; min-height:68px; gap:10px; padding:12px 16px; flex-wrap:wrap; }
-  .gg-main { padding:24px 16px; }
-  .gg-panel { padding:20px; }
-  .gg-mobile-nav { padding:0 4px; }
-  .gg-mobile-nav>a { flex-direction:column; gap:3px; min-height:64px; font-size:12px; padding:10px 4px; }
-  .gg-app .gg-checkbox { min-height:44px; gap:10px; font-size:14px; line-height:1.7; }
-  .gg-checkbox input { width:20px; height:20px; }
-  .gg-remember-option>p { margin-left:30px; font-size:12px; }
-  .gg-field-help,.gg-form-caption,.gg-panel-description { font-size:13px; line-height:1.8; }
-  .gg-app .gg-primary-button,.gg-app .gg-secondary-button { min-height:48px; font-size:14px!important; }
-  .gg-verified-email>span { font-size:14px; }
-  .gg-breach-list li { min-height:40px; font-size:13px; }
-  .gg-pagination button { min-width:44px; min-height:44px; }
-  .gg-search input,.gg-email-field input { font-size:16px; }
-  .gg-scan-tabs button { flex:1; min-height:48px; padding:12px; font-size:14px; }
-  .gg-history-table-wrap { -webkit-overflow-scrolling:touch; }
-}
+.gg-storage-notice { min-width:0; margin-bottom:24px; padding:20px; border:1px solid #d9b16f; border-radius:10px; background:#fff8eb; }
+.gg-storage-notice-heading { display:flex; gap:10px; align-items:flex-start; color:#78511a; }
+.gg-storage-notice-heading>svg { flex-shrink:0; margin-top:3px; }
+.gg-storage-notice h2 { margin:0; font-size:18px; line-height:1.6; }
+.gg-storage-notice p { margin:12px 0; font-size:14px; line-height:1.8; color:#6f542c; overflow-wrap:anywhere; }
+.gg-storage-notice .gg-secondary-button { width:100%; margin-top:4px; gap:8px; }
+.gg-storage-recheck-icon { display:inline-flex; }
+.gg-storage-notice .gg-storage-recheck-status:empty { margin:0; }
