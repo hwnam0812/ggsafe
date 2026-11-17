@@ -23,11 +23,17 @@ XposedOrNot은 유출·공식 미발견·응답 오류·연결 오류·제한을
 2026년 11월 17일 로그인 실패를 실제 브라우저에서 재현했다. 원인은 dev 실행기가 등록되지 않은 PC 내부 주소를 기본 돌아올 주소로 넣어 발생한 Google redirect_uri_mismatch다.
 잘못된 PC 주소 기본값을 제거하고 웹 미리보기에서 내부 주소로 로그인을 시작하지 못하게 했다. 설정 미완료는 화면에 명시하며 로그인 성공으로 안내하지 않는다.
 로그인 설정 미완료여도 이미 확인된 계정의 관리창과 로그아웃은 사용할 수 있게 고쳤다. 완료된 과거 요청의 401 응답이 현재 계정을 끊지 않게 했다.
-새 Streamlit 공개 주소·Google 돌아올 주소 등록·영구 보관 연결은 아직 미완료다. 기존 웹 로그인 성공 확인은 Streamlit 공개 로그인 성공을 뜻하지 않는다. 기존 Google 등록을 삭제하거나 처음부터 반복 요청하지 않는다.
+사용자는 Streamlit에 배포한 웹사이트를 PC 브라우저에서 이용한다. PC에 직접 설치해 실행하는 것이 아니므로 로컬 파일 수정을 안내하지 않는다. 공개 주소는 https://ggsafe-msq4mjqwzwdxknynznctif.streamlit.app/ 이다.
+공개 앱을 직접 열어 로그인 설정 미확인 안내와 비활성 버튼을 확인했다. Streamlit Settings의 Secrets에 맞는 Google 설정과 공개 주소/oauth2callback 등록이 필요하며 영구 보관 연결도 미확인이다. GitHub 연결로 Streamlit Secrets를 읽거나 변경할 수 없다. 기존 Google 등록을 삭제하거나 처음부터 반복 요청하지 않는다.
 GitHub는 사용자 지정 공개 빈 저장소 hwnam0812/ggsafe의 feat/streamlit-web에 최초 업로드(b4d4c51)를 완료했고 원격의 109개 파일·실행 파일·필수 화면 패키지·민감 파일 제외를 확인했다. 빈 저장소 최초 브랜치라 기본 브랜치도 feat/streamlit-web이며 비교할 기존 브랜치가 없어 PR은 없다. 공개 범위는 변경하지 않았다. Streamlit 실행 파일은 streamlit_app.py이고 연결 안내는 README.md다. 실제 Google 로그인과 PostgreSQL 보관을 확인하기 전에는 배포 완료라고 하지 않는다.
-기존 웹 테스트 179개·Streamlit Python 테스트 93개와 앱·Worker TypeScript 검사를 통과했다. 익명 Streamlit AppTest도 예외 없이 통과했다.
+기존 웹 테스트 179개·Streamlit Python 테스트 100개와 앱·Worker TypeScript 검사를 통과했다. 익명 화면 및 합성 계정의 저장 연결 미설정·실패 AppTest도 통과했다.
 tests_streamlit/streamlit.e2e.mjs는 합성 쿠키·외부 응답과 실제 Streamlit 처리기로 1440·558·383px에서 동의·검사·서비스 검색·목록 이동·가이드 연결·계정 분리·저장·재시도·재접속·다른 브라우저 공유·삭제·로그아웃을 통과했다.
 tests_streamlit/session.e2e.mjs는 558px에서 만료·위조 쿠키 차단, 과거 응답 무시, 다른 탭 로그아웃, 진행 중 비밀번호 조회 중단과 늦은 결과 미저장을 통과했다.
 실제 사용자 이메일·비밀번호로 외부 검사를 실행하지 않았다. 합성 로그인은 로컬 테스트 전용이며 앱에 우회 로그인 진입점은 없다. 실제 Google 로그인 성공은 아직 확인하지 않았다.
 PC·모바일 화면과 오류 기록을 확인했다. 이전 웹의 오류 기록은 남겨 두었으며 새 실행에서 화면 오류는 없었다. Streamlit 미리보기 보관은 프로젝트 밖 캐시이며 공개 기록과 공유하지 않는다.
 기존 웹의 security_history·security_password_history·security_account_sessions·security_cache·security_inflight와 템플릿 rate_limit·settings·inquiry는 새 Streamlit 표와 별개로 보존한다.
+사용자는 배포 사이트를 휴대폰에서 사용하려 하며 기존 화면 보존과 스크롤·이메일 이력 저장 오류 수정을 요청했다. 화면 높이 고정과 iframe의 scrolling=no 조합으로 740px 화면에서 2339px 내용이 잘리는 문제를 재현했다.
+화면의 실제 내용 높이를 ResizeObserver로 전달해 바깥 문서 하나가 스크롤한다. iframe 안의 vh 최소 높이를 제거했고 사이드 메뉴·대화창이 긴 iframe에 고정되지 않게 했다. 휴대폰 메뉴·동의·버튼을 손가락으로 누르기 쉽게 조정했다.
+이메일 저장 실패는 현재 결과를 유지하고 서버가 확인한 메타데이터 구분값만으로 저장 재시도한다. 외부 재검사·중복 저장을 하지 않으며 다른 계정·만료·변조 요청을 막는다. 저장 대기는 현재 로그인 연결에서 최대 30분·10개이고 로그아웃·계정 변경·기록 삭제 때 지운다.
+보관 연결 미설정·실패는 로그인 오류와 구분해 화면에서 먼저 안내한다. Google 로그인만 설정해도 영구 보관이 연결되는 것은 아니다. 공개 앱의 실제 PostgreSQL 설정·저장은 여전히 접근·검증하지 못했고 임시 저장으로 대체하지 않았다. 로컬 미리보기만 검사 모듈을 다시 읽어 이전 Python 코드의 재사용을 막는다.
+tests_streamlit/mobile.e2e.mjs는 360·390·558·1440px에서 실제 터치 스크롤·페이지 끝 도달·동적 높이·이메일 저장 재시도·중복 방지를 통과했다. 740x390 가로 회전 후 계정창 조작도 통과했다. 휴대폰 수정은 별도 GitHub 변경 요청으로 제공하며 공개 사이트 적용 전이라고 구분한다.

@@ -6,7 +6,7 @@ export function googleSessionKey(): string | null {
 }
 export async function securityApi<T>(path: string, init: RequestInit = {}, expected = googleSessionKey()): Promise<T> {
   if (!expected || expected !== googleSessionKey()) throw new BridgeError("Google로 로그인한 후 이용해 주세요.", 401);
-  const action = path === "/api/security/email" ? "email" : path === "/api/security/history/password" ? "password" : path === "/api/security/history" ? init.method === "DELETE" ? "clear" : "history" : null;
+  const action = path === "/api/security/email" ? "email" : path === "/api/security/history/password" ? "password" : path === "/api/security/history/email" ? "email_save" : path === "/api/security/history" ? init.method === "DELETE" ? "clear" : "history" : null;
   if (!action) throw new BridgeError("지원하지 않는 검사 요청이에요.", 400);
   const value = await nativeRequest<T>(action, init.body ? JSON.parse(String(init.body)) : {}, { connection: expected, signal: init.signal ?? undefined });
   if (expected !== googleSessionKey()) {

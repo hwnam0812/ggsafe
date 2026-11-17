@@ -144,3 +144,50 @@ def test_password_save_error_is_distinct_and_retry_never_calls_external(store, i
 def test_spoofed_owner_and_invalid_operations_are_rejected(service, identity, action, payload):
     with pytest.raises(PublicError):
         service.execute(action, payload, identity, request_id())
+
+def test_email_save_retry_keeps_metadata_and_never_repeats_lookup(store, identity, other, now, monkeypatch):
+    calls, pending = [], {}
+    original = store.save
+    def fail(*args, **kwargs):
+        raise OSError("synthetic-private-connection-value")
+    service = Service(store, lambda email: (calls.append(email) or (200, {"breaches": [["예시 서비스"]]})), lambda: now, pending_email=pending)
+    monkeypatch.setattr(store, "save", fail)
+    value = service.execute("email", scan(identity, save_history=True), identity, request_id())
+    assert value["status"] == "breached" and not value["history_saved"]
+    assert "@" not in json.dumps(pending) and "예시 서비스" not in json.dumps(pending, ensure_ascii=False)
+    receipt = {"id": value["history_id"]}
+    with pytest.raises(PublicError) as error:
+        service.execute("email_save", receipt, identity, request_id())
+    assert error.value.status == 503 and "synthetic-private" not in str(error.value)
+    with pytest.raises(PublicError):
+        service.execute("email_save", receipt, other, request_id())
+    with pytest.raises(PublicError):
+        service.execute("email_save", {**receipt, "breach_count": 999}, identity, request_id())
+    monkeypatch.setattr(store, "save", original)
+    # Streamlit의 다음 실행에서도 서버 쪽 대기 메타데이터로만 저장한다.
+    resumed = Service(store, lambda email: pytest.fail("외부 재조회 금지"), lambda: now, pending_email=pending)
+    for _ in range(2):
+        assert resumed.execute("email_save", receipt, identity, request_id())["history_saved"]
+    assert calls == [identity.email]
+    rows = store.history(identity.owner, now)
+    assert len(rows) == 1 and rows[0]["breach_count"] == 1
+    service.execute("clear", {"confirm": True}, identity, request_id())
+    with pytest.raises(PublicError):
+        resumed.execute("email_save", receipt, identity, request_id())
+
+def test_email_retry_expires_and_pending_results_are_bounded(store, identity, now):
+    pending = {}
+    service = Service(store, lambda email: (404, {"Error": "Not found"}), lambda: now, pending_email=pending)
+    first = service.execute("email", scan(identity, save_history=True), identity, request_id())
+    for _ in range(11):
+        latest = service.execute("email", scan(identity, save_history=True), identity, request_id())
+    assert len(pending) == 10 and first["history_id"] not in pending
+    later = Service(store, clock=lambda: now + 1801, pending_email=pending)
+    with pytest.raises(PublicError) as error:
+        later.execute("email_save", {"id": latest["history_id"]}, identity, request_id())
+    assert error.value.status == 410
+
+@pytest.mark.parametrize("payload", [{}, {"id": "invalid"}, {"id": str(uuid.uuid4()), "owner": "other"}])
+def test_email_retry_rejects_untrusted_receipts(service, identity, payload):
+    with pytest.raises(PublicError):
+        service.execute("email_save", payload, identity, request_id())

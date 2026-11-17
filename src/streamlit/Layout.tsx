@@ -5,6 +5,7 @@ import { SecurityProvider } from "../security/SecurityProvider";
 import Modal from "../security/Modal";
 import GoogleAccount from "./GoogleAccount";
 import { GoogleProvider, useGoogle } from "./GoogleProvider";
+import { nativeRequest } from "./bridge";
 
 const navigation = [
   { to: "/", title: "대시보드", icon: LayoutDashboard }, { to: "/scan", title: "보안 검사", icon: ScanLine },
@@ -19,6 +20,7 @@ function ConnectedWorkspace() {
 }
 function SecurityShell() {
   const [privacy, setPrivacy] = useState(false);
+  const [checkingStorage, setCheckingStorage] = useState(false);
   const { pathname } = useLocation();
   const { state: { session, error } } = useGoogle();
   const current = navigation.find(item => item.to === pathname)?.title ?? "대시보드";
@@ -29,7 +31,7 @@ function SecurityShell() {
     </aside>
     <div className="gg-workspace"><header className="gg-topbar"><NavLink to="/" className="gg-mobile-brand" aria-label="GGSAFE 대시보드"><Shield size={25} aria-hidden="true"/><span translate="no">GGSAFE</span></NavLink><div className="gg-breadcrumb">내 보안 공간 <ChevronRight size={13} aria-hidden="true"/><span>{current}</span></div><div className="gg-topbar-actions"><button type="button" className="gg-icon-button" onClick={() => setPrivacy(true)} aria-label="개인정보 처리 안내"><CircleHelp size={20} aria-hidden="true"/></button><GoogleAccount/></div></header>
       <nav className="gg-mobile-nav" aria-label="모바일 주 메뉴">{navigation.map(({ to, title, icon: Icon }) => <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => isActive ? "is-active" : ""}><Icon size={17} aria-hidden="true"/><span>{title}</span></NavLink>)}</nav>
-      <main id="main-content" className="gg-main">{error && <p className="gg-notice" role="alert">{error}</p>}<Outlet/></main>
+      <main id="main-content" className="gg-main">{error && <p className="gg-notice" role="alert">{error}</p>}{!session.storage_ready && <section className="gg-storage-notice" aria-labelledby="storage-notice-title"><h2 id="storage-notice-title">검사 이력 보관 연결이 필요해요</h2><p role="alert">{session.storage_error || "이력 보관에 연결하지 못했어요."}</p><p>연결되기 전에는 검사와 이력 저장을 시작할 수 없어요. 사라지는 임시 기록으로 대신 저장하지 않아요.</p><button type="button" className="gg-secondary-button" disabled={checkingStorage} onClick={async () => { setCheckingStorage(true); try { await nativeRequest("storage"); } catch { /* 새 연결 안내는 Streamlit의 검증한 상태로 갱신된다. */ } finally { setCheckingStorage(false); } }}>{checkingStorage ? "연결 확인 중…" : "보관 연결 다시 확인"}</button></section>}<Outlet/></main>
       <footer className="gg-footer"><ShieldCheck size={16} aria-hidden="true"/><span>확인한 정보만 표시해요. 유출 기록 미발견이 계정의 안전을 보장하지는 않아요.</span><button type="button" onClick={() => setPrivacy(true)}>개인정보 안내</button></footer>
     </div>
     <Modal title="개인정보 처리 안내" open={privacy} onClose={() => setPrivacy(false)}>
