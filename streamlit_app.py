@@ -1,9 +1,11 @@
 """Streamlit Community Cloud entry point. Browser UI never supplies an identity."""
 from collections import OrderedDict
 import json
+import logging
 import os
 from pathlib import Path
 import time
+import traceback
 import uuid
 
 import streamlit as st
@@ -11,7 +13,7 @@ import streamlit.components.v1 as components
 
 from ggsafe_streamlit.config import auth_available, login_problem, storage_settings
 from ggsafe_streamlit.identity import PublicError, iso, verified_identity
-from ggsafe_streamlit.service import Service, valid_uuid
+from ggsafe_streamlit import service as service_module
 from ggsafe_streamlit.storage import Store
 
 st.set_page_config(page_title="GGSAFE · 내 계정을 위한 안전한 습관", page_icon="🛡️", layout="wide", initial_sidebar_state="collapsed")
@@ -23,7 +25,7 @@ html,body,[data-testid="stAppViewContainer"]{background:#f5f7fb}
 [data-testid="stMainBlockContainer"]{padding:0!important;max-width:none!important}
 [data-testid="stVerticalBlock"]{gap:0!important}
 [data-testid="stCustomComponentV1"]{width:100%}
-iframe[title$=".ui"]{display:block;border:0;width:100%;height:100dvh!important;min-height:500px}
+iframe[title$=".ui"]{display:block;border:0;width:100%}
 </style>""")
 
 @st.cache_resource(show_spinner=False)
@@ -37,6 +39,12 @@ except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
 
 configured = auth_available(secrets)
 local_preview = os.environ.get("GGSAFE_LOCAL_PREVIEW") == "1"
+if local_preview:
+    # 장시간 켜 둔 개발 미리보기에서도 Python이 이전 검사 모듈을 재사용하지 않게 한다.
+    # 게시 앱에서는 Streamlit의 정상 로딩을 그대로 사용한다.
+    import importlib
+    importlib.reload(service_module)
+valid_uuid = service_module.valid_uuid
 setup_error = login_problem(secrets, local_preview=local_preview)
 available = configured and not setup_error
 state = st.session_state
@@ -56,20 +64,23 @@ if state.get("_owner") != owner or "_connection" not in state:
     state["_connection"] = str(uuid.uuid4())
     state["_replies"] = OrderedDict()
     state["_reply"] = None
+    state["_email_pending"] = {}
 
 store = None
+storage_error = ""
 if identity:
     try:
         store = create_store(**storage_settings(secrets))
     except PublicError as error:
-        setup_error = str(error)
+        storage_error = str(error)
     except Exception:
-        setup_error = "검사 이력 보관에 연결하지 못했어요. 잠시 후 다시 불러와 주세요."
+        storage_error = "검사 이력 보관에 연결하지 못했어요. 연결 설정과 사용 가능 상태를 확인한 뒤 다시 시도해 주세요."
 
 snapshot = dict(
     available=available, user={"email": identity.email} if identity else None,
     connection_id=state["_connection"], expires_at=iso(identity.expires) if identity else None,
     error=setup_error, storage_ready=store is not None,
+    storage_error=storage_error,
     local_preview=local_preview,
 )
 
@@ -99,17 +110,26 @@ if isinstance(request, dict):
                 if identity is None:
                     raise PublicError("Google로 로그인한 후 이용해 주세요.", 401)
                 value = {"active": True}
+            elif action == "storage":
+                if identity is None:
+                    raise PublicError("Google로 로그인한 후 이용해 주세요.", 401)
+                if store is None:
+                    raise PublicError(storage_error, 503)
+                value = {"ready": True}
             else:
                 if identity is None:
                     raise PublicError("Google로 로그인한 후 이용해 주세요.", 401)
                 if store is None:
-                    raise PublicError(setup_error, 503)
-                value = Service(store).execute(action, data, identity, request_id)
+                    raise PublicError(storage_error, 503)
+                service = service_module.Service(store, pending_email=state.setdefault("_email_pending", {}))
+                value = service.execute(action, data, identity, request_id)
             reply = {"id": request_id, "ok": True, "value": value}
         except PublicError as error:
             reply = {"id": request_id, "ok": False, "error": str(error), "status": error.status}
-        except Exception:
+        except Exception as error:
             # 외부 오류 원문·계정·설정값을 화면이나 로그에 남기지 않는다.
+            logging.warning("ggsafe_request_failed:%s", type(error).__name__)
+            logging.warning("ggsafe_request_location:%s", ",".join(f"{Path(frame.filename).name}:{frame.lineno}" for frame in traceback.extract_tb(error.__traceback__)))
             reply = {"id": request_id, "ok": False, "error": "요청을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.", "status": 503}
         state["_replies"][request_id] = reply
         while len(state["_replies"]) > 64:

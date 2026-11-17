@@ -9,6 +9,7 @@ export type ScanResult = {
   cached: boolean;
   history_saved?: boolean;
   history_requested?: boolean;
+  history_id?: string;
 };
 export type ScanHistory = {
   id: string;

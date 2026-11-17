@@ -26,6 +26,12 @@ export function createSecurityClient(request: Requester) {
       });
       if (response.history_saved !== true) throw new Error("이력을 저장하지 못했어요. 다시 시도해 주세요.");
     },
+    async retryEmailHistory(id: string) {
+      const response = await request<{ history_saved: boolean }>("/api/security/history/email", {
+        method: "POST", body: JSON.stringify({ id }),
+      });
+      if (response.history_saved !== true) throw new Error("이력을 저장하지 못했어요. 다시 시도해 주세요.");
+    },
     async clearHistory() {
       return request<{ ok: boolean }>("/api/security/history", { method: "DELETE", body: JSON.stringify({ confirm: true }) });
     },

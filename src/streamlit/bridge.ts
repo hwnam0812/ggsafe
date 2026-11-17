@@ -1,7 +1,7 @@
 // Streamlit v1의 공식 메시지 규약만 사용한다. 신원은 Python의 st.user가 결정한다.
 export type NativeSession = {
   available: boolean; user: { email: string } | null; connection_id: string;
-  expires_at: string | null; storage_ready: boolean; local_preview: boolean; error: string;
+  expires_at: string | null; storage_ready: boolean; storage_error?: string; local_preview: boolean; error: string;
 };
 type Snapshot = { session: NativeSession; ready: boolean };
 type Reply = { id: string; ok: boolean; value?: unknown; status?: number; error?: string };
@@ -74,4 +74,23 @@ window.addEventListener("message", event => {
   pump();
 });
 post("streamlit:componentReady", { apiVersion: 1 });
-post("streamlit:setFrameHeight", { height: 900 });
+// Streamlit은 iframe의 안쪽 스크롤을 끈다. 전체 내용 높이를 알려 바깥 문서가 스크롤하게 한다.
+// viewport/scrollHeight를 측정하면 iframe 높이가 다시 측정에 포함되어 줄어들지 않는다.
+const root = document.getElementById("root")!;
+let frameHeight = 0, scheduled = false;
+function resizeFrame() {
+  if (scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(() => {
+    scheduled = false;
+    const height = Math.max(1, Math.ceil(root.getBoundingClientRect().height));
+    if (height !== frameHeight) {
+      frameHeight = height;
+      post("streamlit:setFrameHeight", { height });
+    }
+  });
+}
+new ResizeObserver(resizeFrame).observe(root);
+window.addEventListener("resize", resizeFrame);
+document.fonts.ready.then(resizeFrame);
+resizeFrame();

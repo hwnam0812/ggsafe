@@ -73,8 +73,10 @@ def password_entry(data, now):
     return dict(id=data["id"].lower(), scan_type="password", status="breached" if status == "found" else "not_found", breach_count=count, checked_at=checked)
 
 class Service:
-    def __init__(self, store: Store, lookup=lookup_email, clock=time.time):
+    def __init__(self, store: Store, lookup=lookup_email, clock=time.time, *, pending_email=None):
         self.store, self.lookup, self.clock = store, lookup, clock
+        # 현재 로그인 연결에서 확인한 메타데이터만 보관한다. 이메일·서비스 목록은 넣지 않는다.
+        self.pending_email = pending_email if pending_email is not None else {}
 
     def execute(self, action, data, identity: Identity | None, request_id):
         now = self.clock()
@@ -91,6 +93,9 @@ class Service:
             if set(data) != {"confirm"} or data.get("confirm") is not True:
                 raise PublicError("삭제 여부를 먼저 선택해 주세요.")
             self.store.clear(identity.owner)
+            for key in list(self.pending_email):
+                if self.pending_email[key]["owner"] == identity.owner:
+                    self.pending_email.pop(key)
             return {"ok": True}
         if action == "password":
             entry = password_entry(data, now)
@@ -102,6 +107,17 @@ class Service:
             return {"history_saved": True}
         if action == "email":
             return self.scan(data, identity, request_id, now)
+        if action == "email_save":
+            if set(data) != {"id"} or not valid_uuid(data.get("id")):
+                raise PublicError("저장할 이메일 검사 결과를 확인해 주세요.")
+            pending = self.pending_email.get(data["id"])
+            if not pending or pending["owner"] != identity.owner or pending["expires"] <= now:
+                raise PublicError("이 결과의 저장 대기 시간이 지났어요. 이메일을 다시 검사해 주세요.", 410)
+            try:
+                self.store.save(identity.owner, pending["entry"], now=now)
+            except Exception:
+                raise PublicError("검사 결과는 유지하고 있어요. 이력 보관 연결을 확인한 뒤 저장만 다시 시도해 주세요.", 503) from None
+            return {"history_saved": True}
         raise PublicError("지원하지 않는 검사 요청이에요.")
 
     def cleanup(self, now):
@@ -117,12 +133,20 @@ class Service:
             raise PublicError("로그인한 Google 이메일만 검사할 수 있어요.", 403)
         if type(data["save_history"]) is not bool or type(data["force_refresh"]) is not bool:
             raise PublicError("검사 설정을 확인해 주세요.")
+        for key in list(self.pending_email):
+            if self.pending_email[key]["expires"] <= now:
+                self.pending_email.pop(key)
         self.cleanup(now)
         def finish(scan):
             scan = {**scan, "history_requested": data["save_history"], "history_saved": False}
             if data["save_history"] and scan["status"] != "in_progress":
+                entry = dict(id=request_id, scan_type="email", status=scan["status"], breach_count=scan["breach_count"], checked_at=scan["checked_at"], cached=scan["cached"])
+                self.pending_email[request_id] = {"owner": identity.owner, "entry": entry, "expires": self.clock() + 1800}
+                while len(self.pending_email) > 10:
+                    self.pending_email.pop(next(iter(self.pending_email)))
+                scan["history_id"] = request_id
                 try:
-                    self.store.save(identity.owner, dict(id=request_id, scan_type="email", status=scan["status"], breach_count=scan["breach_count"], checked_at=scan["checked_at"], cached=scan["cached"]), now=self.clock())
+                    self.store.save(identity.owner, entry, now=self.clock())
                     scan["history_saved"] = True
                 except Exception:
                     logging.warning("ggsafe_email_history_save_failed")

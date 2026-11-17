@@ -7,7 +7,7 @@ import { useGoogle } from "./GoogleProvider";
 type ScanInput = { consent: boolean; remember: boolean; force: boolean };
 type SecurityContextValue = {
   state: { email: string; result: ScanResult | null; busy: boolean; history: ScanHistory[]; historyLoading: boolean; historyError: string };
-  actions: { scan: (input: ScanInput) => Promise<void>; savePasswordHistory: (input: PasswordHistoryInput) => Promise<void>; refreshHistory: () => Promise<void>; clearHistory: () => Promise<void> };
+  actions: { scan: (input: ScanInput) => Promise<void>; retryEmailHistory: () => Promise<void>; savePasswordHistory: (input: PasswordHistoryInput) => Promise<void>; refreshHistory: () => Promise<void>; clearHistory: () => Promise<void> };
 };
 const SecurityContext = createContext<SecurityContextValue | null>(null);
 
@@ -25,6 +25,7 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
   const [historyError, setHistoryError] = useState("");
   const pendingHistory = useRef<Promise<void> | null>(null);
   const pendingScan = useRef(false);
+  const pendingEmailSave = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
@@ -45,7 +46,7 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
   useEffect(() => { void refreshHistory(); }, [refreshHistory]);
 
   const scan = useCallback(async (input: ScanInput) => {
-    if (!input.consent || pendingScan.current) return;
+    if (!input.consent || pendingScan.current || pendingEmailSave.current) return;
     pendingScan.current = true;
     setBusy(true);
     setResult(null);
@@ -55,11 +56,27 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
       const response = await securityClient.scan({ ...input, email });
       if (!mounted.current) return;
       setResult(response);
+      if (pendingHistory.current) await pendingHistory.current;
       await refreshHistory();
     } catch (error) {
       if (mounted.current) setResult({ status: "network_error", message: error instanceof Error ? error.message : "검사를 완료하지 못했어요. 다시 시도해 주세요.", breach_count: 0, breaches: [], checked_at: new Date().toISOString(), source: "XposedOrNot", cached: false, history_saved: false, history_requested: input.remember });
     } finally { if (mounted.current) setBusy(false); pendingScan.current = false; }
   }, [email, ensureActive, refreshHistory, securityClient]);
+
+  const retryEmailHistory = useCallback(async () => {
+    if (!result?.history_id || pendingEmailSave.current || pendingScan.current) return;
+    pendingEmailSave.current = true;
+    const id = result.history_id;
+    try {
+      await ensureActive();
+      if (!mounted.current) return;
+      await securityClient.retryEmailHistory(id);
+      if (!mounted.current) return;
+      setResult(current => current?.history_id === id ? { ...current, history_saved: true } : current);
+      if (pendingHistory.current) await pendingHistory.current;
+      await refreshHistory();
+    } finally { pendingEmailSave.current = false; }
+  }, [result, ensureActive, securityClient, refreshHistory]);
 
   const savePasswordHistory = useCallback(async (input: PasswordHistoryInput) => {
     await securityClient.savePasswordHistory(input);
@@ -78,7 +95,7 @@ export function SecurityProvider({ children, email }: { children: ReactNode; ema
     setResult(null);
   }, [ensureActive, securityClient]);
 
-  const value = useMemo(() => ({ state: { email, result, busy, history, historyLoading, historyError }, actions: { scan, savePasswordHistory, refreshHistory, clearHistory } }), [email, result, busy, history, historyLoading, historyError, scan, savePasswordHistory, refreshHistory, clearHistory]);
+  const value = useMemo(() => ({ state: { email, result, busy, history, historyLoading, historyError }, actions: { scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory } }), [email, result, busy, history, historyLoading, historyError, scan, retryEmailHistory, savePasswordHistory, refreshHistory, clearHistory]);
   return <SecurityContext value={value}>{children}</SecurityContext>;
 }
 
