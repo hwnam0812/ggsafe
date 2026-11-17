@@ -16,10 +16,11 @@ function support(subject, action, extra = {}) {
 }
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
 try {
-  for (const width of [360, 390, 558, 1440]) {
+  for (const width of [320, 360, 390, 558, 1440]) {
+    const height = width === 360 ? 640 : 740;
     const subject = `synthetic-streamlit-${randomUUID()}`; subjects.push(subject);
     const who = support(subject, "identity");
-    const context = await browser.newContext({ viewport: { width, height: 740 }, isMobile: width < 760, hasTouch: true });
+    const context = await browser.newContext({ viewport: { width, height }, isMobile: width < 760, hasTouch: true });
     await context.addCookies([{ name: "_streamlit_user", value: who.cookie, url: base, httpOnly: true, sameSite: "Lax" }]);
     await context.addInitScript(() => {
       if (window === window.top) {
@@ -28,11 +29,24 @@ try {
           if (event.data?.type === "streamlit:setComponentValue") window.__actions.push(event.data.value.action);
         });
       } else {
+        let storageRequest;
+        window.parent.addEventListener("message", event => {
+          if (event.source === window && event.data?.type === "streamlit:setComponentValue" && event.data.value?.action === "storage") storageRequest = event.data.value.id;
+        });
         // 실제로 저장됐으나 완료 응답만 유실된 상황. 재시도는 같은 메타데이터 한 건이어야 한다.
         window.addEventListener("message", event => {
           const reply = event.data?.args?.reply;
           if (window.__failEmailSave && reply?.value?.history_id) {
             reply.value.history_saved = false; window.__failEmailSave = false;
+          }
+          // 안내 UI만 합성 실패로 확인한다. 실제 보관 연결·비밀 설정은 바꾸지 않는다.
+          if (window.__showStorageFailure && event.data?.args?.session) {
+            event.data.args.session.storage_ready = false;
+            event.data.args.session.storage_error = "검사 이력을 오래 보관할 연결이 아직 준비되지 않았어요. 운영자에게 알려 주세요.";
+            if (reply?.id && reply.id === storageRequest) {
+              reply.ok = false; reply.status = 503; reply.error = "보관 연결을 확인하지 못했어요.";
+              delete reply.value;
+            }
           }
         });
       }
@@ -52,6 +66,11 @@ try {
       await fitted();
     }
     await fitted();
+    const shell = await frame.locator(".gg-app").boundingBox();
+    assert.ok(shell && shell.width <= 431);
+    assert.equal(await frame.locator(".gg-sidebar:visible").count(), 0);
+    assert.equal(await frame.locator(".gg-mobile-nav:visible").count(), 1);
+    await page.screenshot({ path: `/tmp/opencode/ggsafe-phone-home-${width}.png` });
     assert.equal(await page.locator('iframe[title$=".ui"]').getAttribute("scrolling"), "no");
     const cdp = await context.newCDPSession(page);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: Math.min(width / 2, 400), y: 620 }] });
@@ -66,7 +85,7 @@ try {
     await page.mouse.wheel(0, 10000);
     await page.waitForFunction(() => { const el = document.querySelector('[data-testid="stMain"]'); return el.scrollTop + el.clientHeight >= el.scrollHeight - 5; });
     const footer = await frame.locator(".gg-footer").boundingBox();
-    assert.ok(footer && footer.y >= 0 && footer.y + footer.height <= 742);
+    assert.ok(footer && footer.y >= 0 && footer.y + footer.height <= height + 2);
     await nav("보안 검사");
     support(subject, "seed", { count: 12 });
     await component.evaluate(() => { window.__failEmailSave = true; });
@@ -94,24 +113,45 @@ try {
     await frame.locator(".gg-history-table tbody tr").waitFor();
     await fitted();
     await page.screenshot({ path: `/tmp/opencode/ggsafe-mobile-history-${width}.png` });
+    const row = frame.locator(".gg-history-table tbody tr").first();
+    assert.equal(await row.locator("[data-label]").count(), 4);
+    const rowBox = await row.boundingBox();
+    assert.ok(rowBox && rowBox.width <= shell.width);
+    await row.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `/tmp/opencode/ggsafe-phone-history-card-${width}.png` });
+    await component.evaluate(() => { window.__showStorageFailure = true; });
+    await frame.getByRole("button", { name: "새로고침", exact: true }).click();
+    const notice = frame.getByRole("region", { name: "검사 이력 보관 연결이 필요해요", exact: true });
+    await notice.waitFor(); await fitted();
+    const noticeBox = await notice.boundingBox();
+    assert.ok(noticeBox && noticeBox.width <= shell.width - 30);
+    await frame.getByRole("button", { name: "보관 연결 다시 확인", exact: true }).click();
+    await notice.getByRole("status").getByText("아직 연결되지 않았어요.", { exact: false }).waitFor();
+    await fitted();
+    await notice.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `/tmp/opencode/ggsafe-phone-storage-${width}.png` });
+    assert.equal(await frame.getByRole("button", { name: "Google 계정 연결됨", exact: true }).count(), 1);
+    await component.evaluate(() => { window.__showStorageFailure = false; });
+    await frame.getByRole("button", { name: "보관 연결 다시 확인", exact: true }).click();
+    await notice.waitFor({ state: "detached" }); await fitted();
     await frame.getByRole("button", { name: "Google 계정 연결됨", exact: true }).click();
     await frame.getByRole("dialog").waitFor();
     await frame.getByRole("button", { name: "창 닫기", exact: true }).click();
     await nav("해결 가이드"); await fitted();
     await page.screenshot({ path: `/tmp/opencode/ggsafe-mobile-guide-${width}.png` });
     if (width === 390) {
-      await page.setViewportSize({ width: 740, height: 390 });
+      await page.setViewportSize({ width: 768, height: 432 });
       await fitted();
       await frame.getByRole("button", { name: "Google 계정 연결됨", exact: true }).click();
       await frame.getByRole("button", { name: "로그아웃", exact: true }).scrollIntoViewIfNeeded();
       const logout = await frame.getByRole("button", { name: "로그아웃", exact: true }).boundingBox();
-      assert.ok(logout && logout.y >= 0 && logout.y + logout.height <= 392);
+      assert.ok(logout && logout.y >= 0 && logout.y + logout.height <= 434);
       await frame.getByRole("button", { name: "창 닫기", exact: true }).click();
       await page.screenshot({ path: "/tmp/opencode/ggsafe-mobile-landscape.png" });
       await page.setViewportSize({ width: 390, height: 740 });
       await fitted();
     }
-    report.push({ width, touch_scroll: true, footer_reachable: true, dynamic_height: true, email_save_retry: true, duplicate_history: false });
+    report.push({ width, height, phone_only: true, touch_scroll: true, footer_reachable: true, dynamic_height: true, email_save_retry: true, duplicate_history: false, history_card: true, storage_notice_retry: true });
     await context.close();
   }
   assert.deepEqual(errors, []);
