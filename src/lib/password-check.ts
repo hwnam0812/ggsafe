@@ -2,6 +2,7 @@
 export const PASSWORD_SOURCE = "https://haveibeenpwned.com/API/v3#PwnedPasswords";
 export const PASSWORD_MAX_LENGTH = 1024;
 export type PasswordResult = { status: "found" | "not_found"; count: number; checked_at: string };
+export type PasswordCheckPhase = "hashing" | "lookup" | "comparing";
 export class PasswordCheckError extends Error {}
 const invalidResponse = () => new PasswordCheckError("조회 응답을 확인하지 못했어요. 미발견 결과가 아니에요. 잠시 후 다시 검사해 주세요.");
 
@@ -61,13 +62,21 @@ async function readRange(response: Response, signal: AbortSignal): Promise<strin
 
 // HIBP 공식 범위 조회: https://haveibeenpwned.com/API/v3#SearchingPwnedPasswordsByRange
 // 별도 동의 + 버튼 클릭에서만 호출한다. fetch에 원문·전체 해시·이메일·Google 정보를 넣지 않는다.
-export async function checkPassword(password: string, options: { consent: boolean; signal?: AbortSignal; fetcher?: typeof fetch; timeoutMs?: number }): Promise<PasswordResult> {
+export async function checkPassword(password: string, options: { consent: boolean; signal?: AbortSignal; fetcher?: typeof fetch; timeoutMs?: number; onProgress?: (phase: PasswordCheckPhase) => void }): Promise<PasswordResult> {
   if (options.consent !== true) throw new PasswordCheckError("변환값 일부를 외부로 보내는 데 동의한 후 검사해 주세요.");
   const signal = AbortSignal.any([AbortSignal.timeout(options.timeoutMs ?? 15000), ...(options.signal ? [options.signal] : [])]);
+  // 화면에는 단계 이름만 전달한다. 원문·해시·응답 자료를 전달하지 않는다.
+  const progress = (phase: PasswordCheckPhase) => {
+    signal.throwIfAborted();
+    try { options.onProgress?.(phase); } catch { /* 표시 실패가 검사 동작을 바꾸지 않는다. */ }
+    signal.throwIfAborted();
+  };
   try {
     signal.throwIfAborted();
+    progress("hashing");
     const hash = await passwordHash(password);
     signal.throwIfAborted();
+    progress("lookup");
     const response = await (options.fetcher ?? fetch)(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, {
       method: "GET", headers: { "Add-Padding": "true", Accept: "text/plain" },
       signal, credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", redirect: "error",
@@ -78,7 +87,9 @@ export async function checkPassword(password: string, options: { consent: boolea
       if (response.status === 429) throw new PasswordCheckError("비밀번호 조회 요청이 제한됐어요. 잠시 후 다시 검사해 주세요.");
       throw invalidResponse();
     }
-    const count = parsePasswordRange(await readRange(response, signal), hash.slice(5));
+    const text = await readRange(response, signal);
+    progress("comparing");
+    const count = parsePasswordRange(text, hash.slice(5));
     signal.throwIfAborted();
     return { status: count > 0 ? "found" : "not_found", count, checked_at: new Date().toISOString() };
   } catch (error) {

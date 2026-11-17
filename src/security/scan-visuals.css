@@ -1,0 +1,42 @@
+/* 기존 GGSAFE 색과 한 열 구성을 유지하는 검사 전용 시각화. */
+.gg-scan-journey { margin-top:22px; padding:17px 0 0; border-top:1px solid #dce5f0; }
+.gg-journey-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:15px; }
+.gg-journey-heading h3 { margin:0; font-size:14px; font-weight:700; }
+.gg-journey-heading>span { font-size:12px; color:#536780; }
+.gg-scan-journey[data-state="running"] .gg-journey-heading>span { color:#245bc7; }
+.gg-scan-journey[data-state="incomplete"] .gg-journey-heading>span { color:#a43d3d; }
+.gg-journey-steps { list-style:none; margin:0; padding:0; }
+.gg-journey-steps li { position:relative; display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; column-gap:10px; min-height:44px; padding-bottom:12px; }
+.gg-journey-steps li:last-child { padding-bottom:0; min-height:32px; }
+.gg-journey-steps li:not(:last-child)::after { content:""; position:absolute; top:28px; bottom:0; left:13px; width:2px; background:#dce5f0; }
+.gg-journey-steps li[data-step-state="done"]::after { background:#a5bee9; }
+.gg-journey-node { display:grid; place-items:center; width:28px; height:28px; border:1px solid #c9d3e1; border-radius:50%; color:#63738a; background:#fff; }
+.gg-journey-spinner { display:flex; }
+.gg-journey-step-title { font-size:13px; font-weight:550; color:#536780; }
+.gg-journey-step-status { font-size:11px; color:#63738a; }
+.gg-journey-steps li[data-step-state="done"] .gg-journey-node { color:#245bc7; background:#edf3ff; border-color:#b8ccef; }
+.gg-journey-steps li[data-step-state="active"] .gg-journey-node { color:#fff; border-color:#2865df; background:#2865df; box-shadow:0 0 0 4px #edf3ff; }
+.gg-journey-steps li[data-step-state="active"] .gg-journey-step-title,
+.gg-journey-steps li[data-step-state="active"] .gg-journey-step-status { color:#245bc7; font-weight:700; }
+.gg-journey-steps li[data-step-state="stopped"] .gg-journey-node { color:#a43d3d; border-color:#d9a6a6; background:#fff5f5; }
+.gg-journey-steps li[data-step-state="stopped"] .gg-journey-step-status { color:#a43d3d; }
+.gg-scan-journey .gg-journey-detail { margin:14px 0 0; padding:11px 12px; border-radius:6px; background:#f2f5fa; font-size:12px; line-height:1.8; color:#536780; }
+.gg-scan-journey[data-state="running"] .gg-journey-detail { background:#edf3ff; color:#345d9a; }
+.gg-scan-journey[data-state="incomplete"] .gg-journey-detail { background:#fff4f4; color:#934141; }
+.gg-scan-result-visual { --scan-accent:#345f9b; --scan-soft:#e7effc; color:var(--scan-accent); padding-bottom:3px; }
+.gg-scan-result-visual[data-outcome="found"] { --scan-accent:#875311; --scan-soft:#f8ebd3; }
+.gg-scan-result-visual[data-outcome="incomplete"] { --scan-accent:#a03e3e; --scan-soft:#f9e5e5; }
+.gg-visual-result-heading { display:flex; gap:12px; align-items:flex-start; }
+.gg-result-symbol { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:13px; background:var(--scan-soft); }
+.gg-visual-result-heading>div { min-width:0; }
+.gg-result-outcome-label { display:block; font-size:11px; line-height:1.5; font-weight:600; margin-bottom:5px; }
+.gg-visual-result-heading h3 { font-size:16px; font-weight:700; line-height:1.6; margin:0; text-wrap:pretty; }
+.gg-result .gg-scan-result-visual .gg-visual-count { display:flex; align-items:baseline; flex-direction:row; flex-wrap:wrap; gap:5px; margin:21px 0 0; color:var(--scan-accent); }
+.gg-scan-result-visual .gg-visual-count strong { min-width:0; max-width:100%; font-size:clamp(30px,9vw,42px); font-weight:750; line-height:1.15; letter-spacing:-.04em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.gg-scan-result-visual .gg-visual-count>span { font-size:17px; font-weight:600; }
+.gg-scan-result-visual .gg-visual-count-label { font-size:13px; margin:6px 0 0; font-weight:650; color:var(--scan-accent); }
+.gg-scan-result-visual .gg-visual-meaning { font-size:12px; line-height:1.8; color:#536780; margin:12px 0 0; padding-left:10px; border-left:2px solid currentColor; }
+.gg-app .gg-result>p { font-size:13px; line-height:1.8; }
+.gg-app .gg-result-meta { font-size:11px; line-height:1.8; }
+.gg-app .gg-result-link { min-height:44px; font-size:13px; }
+@media(prefers-reduced-motion:reduce) { .gg-scan-journey .gg-spinning { animation:none; } }
