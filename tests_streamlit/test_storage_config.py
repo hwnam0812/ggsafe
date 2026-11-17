@@ -1,5 +1,6 @@
 from copy import deepcopy
 import sqlite3
+from urllib.parse import unquote, urlparse
 import pytest
 from ggsafe_streamlit.config import GOOGLE_METADATA, auth_available, login_problem, storage_settings
 from ggsafe_streamlit.identity import PublicError
@@ -23,9 +24,39 @@ def test_minimal_google_scope_and_no_exposed_tokens():
 def test_hosted_app_never_silently_uses_ephemeral_storage(monkeypatch):
     monkeypatch.delenv("GGSAFE_LOCAL_PREVIEW", raising=False)
     monkeypatch.delenv("GGSAFE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("GGSAFE_DATABASE_PASSWORD", raising=False)
     with pytest.raises(PublicError):
         storage_settings({})
     assert storage_settings({"storage": {"database_url": "postgresql://synthetic"}}) == {"database_url": "postgresql://synthetic"}
+
+def test_ggsafe_password_uses_the_verified_target_and_preserves_reserved_characters(monkeypatch):
+    monkeypatch.delenv("GGSAFE_DATABASE_URL", raising=False)
+    password = "synthetic:한글/@#?&% 공백"
+    settings = storage_settings({"storage": {"database_password": password}})
+    parsed = urlparse(settings["database_url"])
+    assert parsed.hostname == "aws-0-ap-southeast-2.pooler.supabase.com" and parsed.port == 6543
+    assert parsed.username == "postgres.twvieqoistnrdvhfeeya"
+    assert unquote(parsed.password) == password and parsed.query == "sslmode=require"
+
+def test_password_environment_is_server_only_and_explicit_url_still_takes_priority(monkeypatch):
+    monkeypatch.delenv("GGSAFE_DATABASE_URL", raising=False)
+    monkeypatch.setenv("GGSAFE_DATABASE_PASSWORD", "synthetic-password-only")
+    assert "synthetic-password-only" in storage_settings({})["database_url"]
+    assert storage_settings({"storage": {"database_url": "postgresql://explicit"}}) == {"database_url": "postgresql://explicit"}
+
+@pytest.mark.parametrize("password", [None, False, True, 0, 123, ["synthetic"], "invalid\x00value"])
+def test_invalid_storage_password_is_rejected_without_leaking_it(monkeypatch, password):
+    monkeypatch.delenv("GGSAFE_DATABASE_URL", raising=False)
+    with pytest.raises(PublicError, match="설정을 확인"):
+        storage_settings({"storage": {"database_password": password}})
+
+def test_local_preview_stays_separate_even_when_hosted_credentials_exist(monkeypatch, tmp_path):
+    preview = str(tmp_path / "synthetic-preview.sqlite3")
+    monkeypatch.setenv("GGSAFE_LOCAL_PREVIEW", "1")
+    monkeypatch.setenv("GGSAFE_PREVIEW_DB", preview)
+    monkeypatch.setenv("GGSAFE_DATABASE_URL", "postgresql://synthetic-hosted")
+    monkeypatch.setenv("GGSAFE_DATABASE_PASSWORD", "synthetic-hosted-password")
+    assert storage_settings({"storage": {"database_password": "synthetic-secret"}}) == {"preview_path": preview}
 
 def test_retry_is_bounded_and_never_retries_unrelated_errors():
     pauses, calls = [], []
